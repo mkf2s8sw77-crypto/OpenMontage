@@ -48,6 +48,7 @@ scratch/
 
 # Internal docs (strategy, handoffs, playbooks — not shipped)
 internal/
+promptDocs/
 
 # Local agent config (user-specific)
 .claude/memory/
