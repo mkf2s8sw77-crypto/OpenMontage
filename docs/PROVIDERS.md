@@ -131,6 +131,51 @@ No subscription — pure pay-as-you-go, no minimum spend.
 
 ---
 
+### MiniMax Official - Direct API (TTS, Image, Music, Video)
+
+> **MiniMax official direct connection.** Calls MiniMax's API directly at `https://api.minimaxi.com` (CN node) - separate from the fal.ai gateway. Unlocks TTS, image generation, music generation, and async video generation.
+
+**Tools unlocked:** `minimax_official_tts`, `minimax_official_image`, `minimax_official_music`, `minimax_official_video`
+**Env vars:** `MINIMAX_API_KEY` (required), `MINIMAX_API_HOST` (optional, defaults to CN node), `MINIMAX_MUSIC_MODEL` (optional, for music model version override)
+
+#### Setup
+
+1. Go to [platform.minimaxi.com](https://platform.minimaxi.com/) and create an account
+2. Navigate to the API key section and generate a key
+3. Add to `.env`: `MINIMAX_API_KEY=your-key-here`
+
+#### What it's best for
+
+- Chinese/English bilingual TTS with `speech-2.8-hd`
+- Image generation with `image-01`
+- Music generation with `music-2.6` (model version is configurable via `MINIMAX_MUSIC_MODEL`)
+- Async video generation with `MiniMax-Hailuo-2.3`
+- Using MiniMax without relying on the fal.ai proxy layer
+
+#### Provider-to-Tool note
+
+| Route | Provider identifier | Notes |
+|-------|---------------------|-------|
+| fal.ai gateway | `minimax` | `tools/video/minimax_video.py` — fal.ai proxy |
+| **MiniMax official direct** | `minimax_official` | New direct tools — do not share `provider` identifier with fal route |
+
+This separation ensures `video_selector` and capability-based routing work correctly and do not confuse the two paths.
+
+#### Pricing
+
+MiniMax official pricing is available at [platform.minimaxi.com](https://platform.minimaxi.com/). TTS is billed per million characters; image generation per image; music generation per track.
+
+**Default models:**
+
+| Capability | Default model | Notes |
+|-----------|--------------|-------|
+| TTS | `speech-2.8-hd` | High-definition voice |
+| Image | `image-01` | Latest image model |
+| Music | `music-2.6` | Configurable via `MINIMAX_MUSIC_MODEL` env var |
+| Video | `MiniMax-Hailuo-2.3` | Async create -> query -> retrieve file flow |
+
+---
+
 ### ElevenLabs — Voice, Music, Sound Effects
 
 > **Premium voice quality.** Best TTS for narration-heavy videos. Also generates music and sound effects.
@@ -646,6 +691,7 @@ These tools require only FFmpeg or Python packages — no GPU, no API key.
 | **fal.ai** | `FAL_KEY` | `flux_image`, `recraft_image`, `kling_video`, `veo_video`, `minimax_video` | Pay-as-you-go |
 | **OpenAI** | `OPENAI_API_KEY` | `openai_tts`, `openai_image` | Paid only |
 | **xAI** | `XAI_API_KEY` | `grok_image`, `grok_video` | Paid only |
+| **MiniMax Official** | `MINIMAX_API_KEY` | `minimax_official_tts`, `minimax_official_image`, `minimax_official_music`, `minimax_official_video` | Pay-as-you-go |
 | **Runway** | `RUNWAY_API_KEY` | `runway_video` | Free trial + paid |
 | **Higgsfield** | `HIGGSFIELD_API_KEY` + `HIGGSFIELD_API_SECRET` | `higgsfield_video` | Subscription ($15-84/mo) |
 | **HeyGen** | `HEYGEN_API_KEY` | `heygen_video` | Pay-as-you-go |
@@ -662,10 +708,10 @@ How many providers cover each capability:
 
 | Capability | Cloud Providers | Local Providers | Free Options |
 |-----------|----------------|-----------------|--------------|
-| **Image Generation** | FLUX, Grok, Google Imagen, DALL-E 3, Recraft | Local Diffusion | Pexels, Pixabay (stock) |
-| **Video Generation** | Grok, Kling, Runway, Veo, Higgsfield, MiniMax, HeyGen | WAN, Hunyuan, CogVideo, LTX | Pexels, Pixabay (stock) |
-| **Text-to-Speech** | ElevenLabs, Google TTS, OpenAI | Piper | Piper, Google free tier, ElevenLabs free tier |
-| **Music Generation** | ElevenLabs, Suno | — | ElevenLabs free tier |
+| **Image Generation** | FLUX, Grok, Google Imagen, DALL-E 3, Recraft, MiniMax Official | Local Diffusion | Pexels, Pixabay (stock) |
+| **Video Generation** | Grok, Kling, Runway, Veo, Higgsfield, MiniMax, MiniMax Official, HeyGen | WAN, Hunyuan, CogVideo, LTX | Pexels, Pixabay (stock) |
+| **Text-to-Speech** | ElevenLabs, Google TTS, OpenAI, MiniMax Official | Piper | Piper, Google free tier, ElevenLabs free tier |
+| **Music Generation** | ElevenLabs, Suno, MiniMax Official | — | ElevenLabs free tier |
 | **Post-Production** | — | FFmpeg (compose, stitch, trim, mix, enhance, grade) | All free |
 | **Analysis** | — | WhisperX, Scene Detect, Frame Sampler, CLIP/BLIP-2 | All free |
 | **Enhancement** | — | Upscale, BG Remove, Face Enhance, Face Restore | All free |

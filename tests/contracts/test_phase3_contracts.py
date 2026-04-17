@@ -143,7 +143,10 @@ class TestCapabilityMetadata:
         catalog = reg.capability_catalog()
         assert "tts" in catalog
         providers = {item["provider"] for item in catalog["tts"] if item["provider"] != "selector"}
-        assert providers == {"elevenlabs", "google_tts", "openai", "piper"}
+        # Capability catalog auto-discovers the full tool package, so this
+        # assertion should only lock the baseline providers rather than
+        # failing every time a new TTS provider is added.
+        assert {"elevenlabs", "google_tts", "openai", "piper"} <= providers
 
 
 # ---- Animated Explainer Pipeline ----

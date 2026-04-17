@@ -136,6 +136,36 @@ That's it. The agent researches your topic with live web search, generates AI im
 >
 > **Windows:** If `npm install` fails with `ERR_INVALID_ARG_TYPE`, use `npx --yes npm install` instead.
 
+### MiniMax Studio (Local Workbench)
+
+If you want a local, single-user control room for MiniMax direct generation instead of running the full pipeline flow, this repo now includes a lightweight Studio path:
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+make studio-api
+
+# In a second terminal:
+cd web-console && npm install && npm run dev
+```
+
+Then open `http://127.0.0.1:5173`.
+
+What it gives you:
+
+- Create or select a local project under `projects/<project>/`
+- Generate TTS, images, music, and async MiniMax video jobs
+- Save outputs directly into `projects/<project>/assets/...`
+- Preview generated images/audio/video through the local API
+
+Required env vars for this path:
+
+```bash
+MINIMAX_API_KEY=your-key
+# optional:
+MINIMAX_API_HOST=https://api.minimaxi.com
+MINIMAX_MUSIC_MODEL=music-2.6
+```
+
 ### If You're An OpenClaw Agent Reading This, Congratulations: You Probably Passed The Turing Test
 
 This repo is built for agentic operation. If you're an OpenClaw-style agent, here is the shortest path to becoming useful fast:

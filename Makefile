@@ -1,4 +1,5 @@
 .PHONY: setup install install-dev install-gpu test test-contracts lint clean preflight demo demo-list
+.PHONY: studio-api studio-web
 
 # ---- One-command setup ----
 
@@ -60,3 +61,9 @@ lint:
 
 clean:
 	python -c "import pathlib, shutil; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__')]; [p.unlink() for p in pathlib.Path('.').rglob('*.pyc')]"
+
+studio-api:
+	python3 -m uvicorn studio_api.main:app --reload --port 8000
+
+studio-web:
+	cd web-console && npm run dev
