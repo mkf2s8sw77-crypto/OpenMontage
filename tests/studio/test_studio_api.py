@@ -80,9 +80,17 @@ def test_generate_music_route(monkeypatch):
         },
     )()
     with patch("studio_api.main.MiniMaxOfficialMusic.execute", return_value=fake_result):
-        response = client.post("/api/studio/music", json={"project_id": "studio-api-music", "prompt": "ambient piano"})
+        response = client.post(
+            "/api/studio/music",
+            json={"project_id": "studio-api-music", "prompt": "ambient piano", "lyrics": "[Verse]\nhello"},
+        )
     assert response.status_code == 200
     assert response.json()["category"] == "music"
+
+
+def test_generate_music_route_requires_lyrics():
+    response = client.post("/api/studio/music", json={"project_id": "studio-api-music", "prompt": "ambient piano"})
+    assert response.status_code == 422
 
 
 def test_create_video_job_and_query(monkeypatch):
@@ -109,3 +117,15 @@ def test_create_video_job_and_query(monkeypatch):
     detail = client.get(f"/api/studio/jobs/{job['job_id']}?project_id=studio-api-video")
     assert detail.status_code == 200
     assert detail.json()["job"]["job_id"] == job["job_id"]
+
+
+def test_api_allows_local_vite_origin_via_cors():
+    response = client.options(
+        "/api/studio/tts",
+        headers={
+            "Origin": "http://127.0.0.1:5173",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"

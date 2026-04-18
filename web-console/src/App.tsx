@@ -26,13 +26,18 @@ type Job = {
   updated_at: string;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
-
 const tabs = ["tts", "image", "music", "video", "jobs"] as const;
 type Tab = (typeof tabs)[number];
 
+function apiPath(path: string): string {
+  if (import.meta.env.DEV) {
+    return path;
+  }
+  return path.replace(/^\//, "");
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(apiPath(path), {
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),
@@ -54,9 +59,8 @@ function formatBytes(size: number): string {
 }
 
 function buildFileUrl(projectId: string, path: string): string {
-  const url = new URL(`${API_BASE}/api/studio/projects/${projectId}/files`);
-  url.searchParams.set("path", path);
-  return url.toString();
+  const normalized = encodeURIComponent(path);
+  return apiPath(`/api/studio/projects/${projectId}/files?path=${normalized}`);
 }
 
 function normalizeProjectRelativePath(projectId: string, value: unknown): string | null {
@@ -91,12 +95,13 @@ export default function App() {
   const [ttsText, setTtsText] = useState("欢迎使用 OpenMontage MiniMax Studio。");
   const [imagePrompt, setImagePrompt] = useState("A cinematic creator control room, warm tungsten glow, brass and paper textures, 16:9.");
   const [musicPrompt, setMusicPrompt] = useState("Instrumental ambient piano with soft tape texture and reflective mood.");
+  const [musicLyrics, setMusicLyrics] = useState("[Verse]\nWarm light on the desk tonight\nIdeas flicker into sight\n[Chorus]\nHold the frame and let it glow\nTurn the quiet into flow");
   const [videoPrompt, setVideoPrompt] = useState("A camera glides through a moody editing desk lit by warm practical lights, cinematic realism.");
 
-  const selectedAssets = useMemo(
-    () => assets.slice().reverse().slice(0, 8),
-    [assets],
-  );
+  const selectedAssets = useMemo(() => assets.slice().reverse().slice(0, 8), [assets]);
+
+  const recentAssetsByCategory = (category: Asset["category"]) =>
+    assets.filter((asset) => asset.category === category).slice().reverse().slice(0, 8);
 
   const refreshProjects = async () => {
     const payload = await api<{projects: Project[]}>("/api/studio/projects");
@@ -269,7 +274,7 @@ export default function App() {
                 {loading === "tts" ? "Generating..." : "Generate Speech"}
               </button>
             </div>
-            <PreviewGrid projectId={selectedProject} assets={selectedAssets.filter((asset) => asset.category === "audio")} />
+            <PreviewGrid projectId={selectedProject} assets={recentAssetsByCategory("audio")} />
           </section>
         )}
 
@@ -282,7 +287,7 @@ export default function App() {
                 {loading === "image" ? "Generating..." : "Generate Image"}
               </button>
             </div>
-            <PreviewGrid projectId={selectedProject} assets={selectedAssets.filter((asset) => asset.category === "images")} />
+            <PreviewGrid projectId={selectedProject} assets={recentAssetsByCategory("images")} />
           </section>
         )}
 
@@ -291,11 +296,12 @@ export default function App() {
             <div className="panel form-panel">
               <h3>Music</h3>
               <textarea value={musicPrompt} onChange={(e) => setMusicPrompt(e.target.value)} rows={7} />
-              <button onClick={() => void submit("music", {prompt: musicPrompt, duration_seconds: 15})} disabled={loading === "music"}>
+              <textarea value={musicLyrics} onChange={(e) => setMusicLyrics(e.target.value)} rows={8} placeholder="lyrics" />
+              <button onClick={() => void submit("music", {prompt: musicPrompt, lyrics: musicLyrics, duration_seconds: 15})} disabled={loading === "music"}>
                 {loading === "music" ? "Generating..." : "Generate Music"}
               </button>
             </div>
-            <PreviewGrid projectId={selectedProject} assets={selectedAssets.filter((asset) => asset.category === "music")} />
+            <PreviewGrid projectId={selectedProject} assets={recentAssetsByCategory("music")} />
           </section>
         )}
 
@@ -309,7 +315,7 @@ export default function App() {
               </button>
               <p className="meta">Video jobs are async. Submit here, then monitor them in the Jobs tab.</p>
             </div>
-            <PreviewGrid projectId={selectedProject} assets={selectedAssets.filter((asset) => asset.category === "video")} />
+            <PreviewGrid projectId={selectedProject} assets={recentAssetsByCategory("video")} />
           </section>
         )}
 

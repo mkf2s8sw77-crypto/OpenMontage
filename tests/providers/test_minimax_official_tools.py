@@ -54,9 +54,8 @@ class TestMiniMaxOfficialTTS:
 
                 mock_resp = MagicMock()
                 mock_resp.json.return_value = {
-                    "data": {
-                        "audio": {"file_url": "https://cdn.example.com/audio.mp3"}
-                    }
+                    "data": {"audio": "https://cdn.example.com/audio.mp3"},
+                    "base_resp": {"status_code": 0, "status_msg": "success"},
                 }
                 mock_instance.post.return_value = mock_resp
 
@@ -68,7 +67,36 @@ class TestMiniMaxOfficialTTS:
                 assert result.success is True
                 assert result.data["provider"] == "minimax_official"
                 assert result.data["model"] == "speech-2.8-hd"
+                _, kwargs = mock_instance.post.call_args
+                assert kwargs["json"]["output_format"] == "url"
+                assert kwargs["json"]["voice_setting"]["voice_id"] == "male-qn-qingse"
                 mock_instance.download_file.assert_called_once()
+
+    def test_execute_supports_hex_audio_payload(self, tmp_path: Path):
+        with patch.dict(os.environ, {"MINIMAX_API_KEY": "test-key"}):
+            from tools.audio.minimax_official_tts import MiniMaxOfficialTTS
+
+            tool = MiniMaxOfficialTTS()
+            output_file = tmp_path / "hex_tts.mp3"
+
+            with patch("lib.providers.minimax_official_client.MiniMaxOfficialClient") as MockClient:
+                mock_instance = MagicMock()
+                MockClient.return_value = mock_instance
+
+                mock_resp = MagicMock()
+                mock_resp.json.return_value = {
+                    "data": {"audio": "48656c6c6f"},
+                    "base_resp": {"status_code": 0, "status_msg": "success"},
+                }
+                mock_instance.post.return_value = mock_resp
+
+                result = tool.execute({
+                    "text": "hello world",
+                    "output_path": str(output_file),
+                })
+
+                assert result.success is True
+                assert output_file.read_bytes() == b"Hello"
 
     def test_input_schema_contains_expected_fields(self):
         from tools.audio.minimax_official_tts import MiniMaxOfficialTTS, DEFAULT_TTS_MODEL
@@ -125,9 +153,8 @@ class TestMiniMaxOfficialImage:
 
                 mock_resp = MagicMock()
                 mock_resp.json.return_value = {
-                    "data": {
-                        "images": [{"url": "https://cdn.example.com/image.png"}]
-                    }
+                    "data": {"image_urls": ["https://cdn.example.com/image.png"]},
+                    "base_resp": {"status_code": 0, "status_msg": "success"},
                 }
                 mock_instance.post.return_value = mock_resp
 
@@ -140,6 +167,33 @@ class TestMiniMaxOfficialImage:
                 assert result.data["provider"] == "minimax_official"
                 assert result.data["model"] == "image-01"
                 mock_instance.download_file.assert_called_once()
+
+    def test_execute_maps_reference_image_to_subject_reference(self, tmp_path: Path):
+        with patch.dict(os.environ, {"MINIMAX_API_KEY": "test-key"}):
+            from tools.graphics.minimax_official_image import MiniMaxOfficialImage
+
+            tool = MiniMaxOfficialImage()
+            output_file = tmp_path / "test_img.png"
+
+            with patch("lib.providers.minimax_official_client.MiniMaxOfficialClient") as MockClient:
+                mock_instance = MagicMock()
+                MockClient.return_value = mock_instance
+                mock_resp = MagicMock()
+                mock_resp.json.return_value = {
+                    "data": {"image_urls": ["https://cdn.example.com/image.png"]},
+                    "base_resp": {"status_code": 0, "status_msg": "success"},
+                }
+                mock_instance.post.return_value = mock_resp
+
+                result = tool.execute({
+                    "prompt": "same character, new scene",
+                    "image_url": "https://example.com/ref.png",
+                    "output_path": str(output_file),
+                })
+
+                assert result.success is True
+                _, kwargs = mock_instance.post.call_args
+                assert kwargs["json"]["subject_reference"][0]["image_file"] == "https://example.com/ref.png"
 
     def test_input_schema_contains_expected_fields(self):
         from tools.graphics.minimax_official_image import MiniMaxOfficialImage, DEFAULT_IMAGE_MODEL
@@ -195,24 +249,39 @@ class TestMiniMaxOfficialMusic:
 
                 mock_resp = MagicMock()
                 mock_resp.json.return_value = {
-                    "data": {"audio_url": "https://cdn.example.com/music.mp3"}
+                    "data": {"audio": "https://cdn.example.com/music.mp3"},
+                    "base_resp": {"status_code": 0, "status_msg": "success"},
                 }
                 mock_instance.post.return_value = mock_resp
 
                 result = tool.execute({
                     "prompt": "epic orchestral music",
+                    "lyrics": "[Verse]\\nhello world",
                     "output_path": str(output_file),
                 })
 
                 assert result.success is True
                 assert result.data["provider"] == "minimax_official"
+                _, kwargs = mock_instance.post.call_args
+                assert kwargs["json"]["lyrics"] == "[Verse]\\nhello world"
+                assert kwargs["json"]["output_format"] == "url"
                 mock_instance.download_file.assert_called_once()
+
+    def test_execute_requires_lyrics(self):
+        with patch.dict(os.environ, {"MINIMAX_API_KEY": "test-key"}):
+            from tools.audio.minimax_official_music import MiniMaxOfficialMusic
+
+            tool = MiniMaxOfficialMusic()
+            result = tool.execute({"prompt": "ambient"})
+            assert result.success is False
+            assert "lyrics" in result.error.lower()
 
     def test_input_schema_contains_expected_fields(self):
         from tools.audio.minimax_official_music import MiniMaxOfficialMusic
         tool = MiniMaxOfficialMusic()
         props = tool.input_schema["properties"]
         assert "prompt" in props
+        assert "lyrics" in props
         assert "model" in props  # configurable, not hardcoded
         assert "output_path" in props
 

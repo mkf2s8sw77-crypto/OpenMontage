@@ -158,29 +158,21 @@ class MiniMaxOfficialTTS(BaseTool):
         output_path = Path(inputs.get("output_path", f"minimax_tts.{ext}"))
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Build request payload
         payload: dict[str, Any] = {
             "model": model,
             "text": text,
             "stream": False,
+            "output_format": "url",
+            "voice_setting": {
+                "voice_id": voice,
+                "speed": speed,
+                "vol": vol,
+                "pitch": pitch,
+            },
+            "audio_setting": {
+                "format": output_format,
+            },
         }
-
-        # Only include audio setting if not default
-        audio_settings: dict[str, Any] = {}
-        if speed != 1.0:
-            audio_settings["speed"] = speed
-        if vol != 1.0:
-            audio_settings["vol"] = vol
-        if pitch != 0:
-            audio_settings["pitch"] = pitch
-        if audio_settings:
-            payload["audio_setting"] = audio_settings
-
-        # Voice can be passed as string or dict
-        if isinstance(voice, str):
-            payload["voice_id"] = voice
-        else:
-            payload["voice_id"] = voice
 
         try:
             resp = client.post(
@@ -193,36 +185,27 @@ class MiniMaxOfficialTTS(BaseTool):
         except Exception as exc:
             return ToolResult(success=False, error=f"Failed to parse MiniMax TTS response: {exc}")
 
-        # The TTS API returns audio data in the response directly
-        # or with a file_url to download
-        file_url = (
-            data.get("data", {})
-            .get("audio", {})
-            .get("file_url")
-            or data.get("data", {})
-            .get("file_url")
-        )
-        if not file_url:
-            # Some API shapes put the URL at the top level
-            file_url = data.get("file_url") or data.get("data", {}).get("url")
-
-        if not file_url:
-            # Try to detect API error
-            base_resp = data.get("base_resp", {})
-            status_code = base_resp.get("status_code", 0)
-            if status_code != 0:
-                msg = base_resp.get("status_msg", "Unknown error")
-                return ToolResult(
-                    success=False,
-                    error=f"MiniMax TTS API error {status_code}: {msg}",
-                )
+        base_resp = data.get("base_resp", {})
+        status_code = base_resp.get("status_code", 0)
+        if status_code != 0:
+            msg = base_resp.get("status_msg", "Unknown error")
             return ToolResult(
                 success=False,
-                error=f"No audio URL in response: {data}",
+                error=f"MiniMax TTS API error {status_code}: {msg}",
             )
 
-        # Download the audio file
-        client.download_file(file_url, output_path)
+        audio_payload = data.get("data", {}).get("audio")
+        if isinstance(audio_payload, str) and audio_payload.startswith(("http://", "https://")):
+            client.download_file(audio_payload, output_path)
+        elif isinstance(audio_payload, str):
+            from lib.providers.minimax_official_client import write_hex_payload
+
+            write_hex_payload(audio_payload, output_path)
+        else:
+            return ToolResult(
+                success=False,
+                error=f"No audio payload in response: {data}",
+            )
 
         return ToolResult(
             success=True,
@@ -232,6 +215,7 @@ class MiniMaxOfficialTTS(BaseTool):
                 "voice": voice,
                 "format": ext,
                 "text_length": len(text),
+                "audio_url": audio_payload if isinstance(audio_payload, str) and audio_payload.startswith(("http://", "https://")) else None,
                 "output": str(output_path),
             },
             artifacts=[str(output_path)],

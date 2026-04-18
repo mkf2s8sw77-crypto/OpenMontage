@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
@@ -17,6 +19,7 @@ from studio_api.storage import (
     list_assets,
     list_projects,
     load_jobs,
+    project_exists,
     project_dir,
     resolve_project_file,
     slugify,
@@ -58,6 +61,7 @@ class ImageRequest(BaseModel):
 class MusicRequest(BaseModel):
     project_id: str
     prompt: str
+    lyrics: str
     model: Optional[str] = None
     duration_seconds: Optional[int] = None
 
@@ -79,6 +83,22 @@ class VideoJobRequest(BaseModel):
 
 
 app = FastAPI(title="OpenMontage MiniMax Studio API", version="0.1.0")
+STATIC_DIST_DIR = Path(__file__).resolve().parent.parent / "web-console" / "dist"
+
+_DEFAULT_CORS_ORIGINS = [
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:4173",
+    "http://localhost:4173",
+]
+_EXTRA_CORS_ORIGINS = [item.strip() for item in os.environ.get("STUDIO_CORS_ORIGINS", "").split(",") if item.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[*_DEFAULT_CORS_ORIGINS, *_EXTRA_CORS_ORIGINS],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def error_payload(code: str, message: str, status_code: int = 400) -> HTTPException:
@@ -88,6 +108,13 @@ def error_payload(code: str, message: str, status_code: int = 400) -> HTTPExcept
 def ensure_project(project_id: str) -> str:
     pid = slugify(project_id)
     ensure_project_dirs(pid)
+    return pid
+
+
+def get_existing_project_id(project_id: str) -> str:
+    pid = slugify(project_id)
+    if not project_exists(pid):
+        raise error_payload("project_not_found", f"Project {pid} not found", 404)
     return pid
 
 
@@ -162,13 +189,13 @@ def create_project(request: ProjectCreateRequest) -> dict[str, Any]:
 
 @app.get("/api/studio/projects/{project_id}/assets")
 def project_assets(project_id: str) -> dict[str, Any]:
-    pid = ensure_project(project_id)
+    pid = get_existing_project_id(project_id)
     return {"project_id": pid, "assets": list_assets(pid)}
 
 
 @app.get("/api/studio/projects/{project_id}/files")
 def project_file(project_id: str, path: str) -> FileResponse:
-    pid = ensure_project(project_id)
+    pid = get_existing_project_id(project_id)
     try:
         file_path = resolve_project_file(pid, path)
     except FileNotFoundError:
@@ -242,7 +269,7 @@ def create_video_job(request: VideoJobRequest, background_tasks: BackgroundTasks
 @app.get("/api/studio/jobs")
 def list_jobs(project_id: Optional[str] = None) -> dict[str, Any]:
     if project_id:
-        pid = ensure_project(project_id)
+        pid = get_existing_project_id(project_id)
         return {"jobs": load_jobs(pid)}
     jobs: list[dict[str, Any]] = []
     for project in list_projects():
@@ -253,8 +280,38 @@ def list_jobs(project_id: Optional[str] = None) -> dict[str, Any]:
 
 @app.get("/api/studio/jobs/{job_id}")
 def get_job_detail(job_id: str, project_id: str) -> dict[str, Any]:
-    pid = ensure_project(project_id)
+    pid = get_existing_project_id(project_id)
     job = get_job(pid, job_id)
     if not job:
         raise error_payload("job_not_found", f"Job {job_id} not found", 404)
     return {"job": job}
+
+
+@app.get("/", include_in_schema=False)
+def serve_index() -> FileResponse:
+    index_path = STATIC_DIST_DIR / "index.html"
+    if not index_path.exists():
+        raise error_payload("frontend_not_built", "web-console/dist is missing. Run the frontend build first.", 503)
+    return FileResponse(index_path)
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_frontend(full_path: str) -> FileResponse:
+    if full_path.startswith("api/"):
+        raise error_payload("route_not_found", f"Unknown API route: /{full_path}", 404)
+    if not STATIC_DIST_DIR.exists():
+        raise error_payload("frontend_not_built", "web-console/dist is missing. Run the frontend build first.", 503)
+
+    candidate = (STATIC_DIST_DIR / full_path).resolve()
+    try:
+        candidate.relative_to(STATIC_DIST_DIR.resolve())
+    except ValueError as exc:
+        raise error_payload("invalid_path", str(exc), 400)
+
+    if candidate.is_file():
+        return FileResponse(candidate)
+
+    index_path = STATIC_DIST_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    raise error_payload("frontend_not_built", "web-console/dist is missing. Run the frontend build first.", 503)

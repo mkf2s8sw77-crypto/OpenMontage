@@ -149,14 +149,25 @@ class MiniMaxOfficialImage(BaseTool):
         payload: dict[str, Any] = {
             "model": model,
             "prompt": prompt,
+            "response_format": "url",
         }
 
         if aspect_ratio:
             payload["aspect_ratio"] = aspect_ratio
         if resolution:
-            payload["resolution"] = resolution
+            try:
+                width, height = str(resolution).lower().split("x", 1)
+                payload["width"] = int(width)
+                payload["height"] = int(height)
+            except (TypeError, ValueError):
+                payload["resolution"] = resolution
         if image_url:
-            payload["image_url"] = image_url
+            payload["subject_reference"] = [
+                {
+                    "type": "character",
+                    "image_file": image_url,
+                }
+            ]
 
         try:
             resp = client.post(
@@ -169,16 +180,10 @@ class MiniMaxOfficialImage(BaseTool):
         except Exception as exc:
             return ToolResult(success=False, error=f"Failed to parse MiniMax image response: {exc}")
 
-        # Extract image URL from response
-        # Response shape: { data: { images: [{ url: "..." }] } }
         image_url_result = (
-            data.get("data", {})
-            .get("images", [{}])[0]
-            .get("url")
-            or data.get("data", {})
-            .get("image_url")
-            or data.get("data", {})
-            .get("url")
+            (data.get("data", {}).get("image_urls") or [None])[0]
+            or data.get("data", {}).get("image_url")
+            or data.get("data", {}).get("url")
             or data.get("url")
         )
 

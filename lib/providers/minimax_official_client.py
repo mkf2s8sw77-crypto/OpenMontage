@@ -30,6 +30,14 @@ def get_host() -> str:
     return os.environ.get("MINIMAX_API_HOST", DEFAULT_HOST)
 
 
+def write_hex_payload(hex_data: str, output_path: str | os.PathLike) -> None:
+    """Persist a MiniMax hex-encoded payload to disk."""
+    path = Path(output_path) if not isinstance(output_path, Path) else output_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cleaned = "".join(hex_data.split())
+    path.write_bytes(bytes.fromhex(cleaned))
+
+
 class MiniMaxAPIError(Exception):
     """Raised when the MiniMax API returns an error response."""
 
@@ -179,7 +187,7 @@ class MiniMaxOfficialClient:
         resp = self._session.get(url, headers=self.headers, timeout=self.timeout, stream=True)
         resp.raise_for_status()
         path = Path(output_path) if not isinstance(output_path, Path) else output_path
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=8192):
                 f.write(chunk)

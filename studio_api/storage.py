@@ -32,6 +32,10 @@ def project_dir(project_id: str) -> Path:
     return PROJECTS_ROOT / project_id
 
 
+def project_exists(project_id: str) -> bool:
+    return project_dir(project_id).is_dir()
+
+
 def ensure_project_dirs(project_id: str) -> Path:
     root = project_dir(project_id)
     for relative in (
@@ -101,7 +105,7 @@ def get_job(project_id: str, job_id: str) -> Optional[dict[str, Any]]:
 
 def build_output_path(project_id: str, category: str, stem: str, extension: str) -> Path:
     root = ensure_project_dirs(project_id)
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     filename = f"{stem}-{timestamp}.{extension.lstrip('.')}"
     category_map = {
         "audio": root / "assets" / "audio",

@@ -70,6 +70,9 @@ Thumbs.db
 
 # Node (for remotion-composer/)
 node_modules/
+web-console/*.tsbuildinfo
+web-console/vite.config.js
+web-console/vite.config.d.ts
 
 # Remotion build output and copied project assets (regenerable at render time)
 remotion-composer/out/

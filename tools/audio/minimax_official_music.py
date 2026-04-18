@@ -61,11 +61,15 @@ class MiniMaxOfficialMusic(BaseTool):
 
     input_schema = {
         "type": "object",
-        "required": ["prompt"],
+        "required": ["prompt", "lyrics"],
         "properties": {
             "prompt": {
                 "type": "string",
                 "description": "Music description (mood, genre, instruments, tempo)",
+            },
+            "lyrics": {
+                "type": "string",
+                "description": "Lyrics content used by MiniMax music generation.",
             },
             "model": {
                 "type": "string",
@@ -129,6 +133,7 @@ class MiniMaxOfficialMusic(BaseTool):
         client = MiniMaxOfficialClient(api_key=api_key)
 
         prompt = inputs["prompt"]
+        lyrics = inputs["lyrics"]
         model = inputs.get("model", DEFAULT_MUSIC_MODEL)
         duration = inputs.get("duration_seconds")
 
@@ -138,10 +143,13 @@ class MiniMaxOfficialMusic(BaseTool):
         payload: dict[str, Any] = {
             "model": model,
             "prompt": prompt,
+            "lyrics": lyrics,
+            "stream": False,
+            "output_format": "url",
+            "audio_setting": {
+                "format": "mp3",
+            },
         }
-        if duration:
-            payload["duration"] = duration
-
         try:
             resp = client.post(
                 "/v1/music_generation",
@@ -153,32 +161,27 @@ class MiniMaxOfficialMusic(BaseTool):
         except Exception as exc:
             return ToolResult(success=False, error=f"Failed to parse MiniMax music response: {exc}")
 
-        # Response: { data: { audio_url: "..." } } or similar
-        audio_url = (
-            data.get("data", {})
-            .get("audio_url")
-            or data.get("data", {})
-            .get("url")
-            or data.get("audio_url")
-            or data.get("url")
-        )
-
-        if not audio_url:
-            base_resp = data.get("base_resp", {})
-            status_code = base_resp.get("status_code", 0)
-            if status_code != 0:
-                msg = base_resp.get("status_msg", "Unknown error")
-                return ToolResult(
-                    success=False,
-                    error=f"MiniMax music API error {status_code}: {msg}",
-                )
+        base_resp = data.get("base_resp", {})
+        status_code = base_resp.get("status_code", 0)
+        if status_code != 0:
+            msg = base_resp.get("status_msg", "Unknown error")
             return ToolResult(
                 success=False,
-                error=f"No audio URL in response: {data}",
+                error=f"MiniMax music API error {status_code}: {msg}",
             )
 
-        # Download the audio file
-        client.download_file(audio_url, output_path)
+        audio_payload = data.get("data", {}).get("audio")
+        if isinstance(audio_payload, str) and audio_payload.startswith(("http://", "https://")):
+            client.download_file(audio_payload, output_path)
+        elif isinstance(audio_payload, str):
+            from lib.providers.minimax_official_client import write_hex_payload
+
+            write_hex_payload(audio_payload, output_path)
+        else:
+            return ToolResult(
+                success=False,
+                error=f"No audio payload in response: {data}",
+            )
 
         return ToolResult(
             success=True,
@@ -186,7 +189,9 @@ class MiniMaxOfficialMusic(BaseTool):
                 "provider": self.provider,
                 "model": model,
                 "prompt": prompt,
+                "lyrics": lyrics,
                 "duration_seconds": duration,
+                "audio_url": audio_payload if isinstance(audio_payload, str) and audio_payload.startswith(("http://", "https://")) else None,
                 "output": str(output_path),
                 "format": "mp3",
             },

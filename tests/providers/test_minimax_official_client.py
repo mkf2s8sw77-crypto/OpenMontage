@@ -163,6 +163,13 @@ class TestMiniMaxOfficialClient:
                 client.download_file("https://example.com/file.mp3", output)
                 assert output.read_bytes() == b"data"
 
+    def test_write_hex_payload_persists_bytes(self, tmp_path: Path):
+        from lib.providers.minimax_official_client import write_hex_payload
+
+        output = tmp_path / "hex.bin"
+        write_hex_payload("48656c6c6f", output)
+        assert output.read_bytes() == b"Hello"
+
     def test_create_video_generation_task_returns_task_id(self):
         with patch.dict(os.environ, {"MINIMAX_API_KEY": "test-key"}):
             from lib.providers.minimax_official_client import MiniMaxOfficialClient
