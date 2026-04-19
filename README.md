@@ -163,7 +163,7 @@ Required env vars for this path:
 MINIMAX_API_KEY=your-key
 # optional:
 MINIMAX_API_HOST=https://api.minimaxi.com
-MINIMAX_MUSIC_MODEL=music-2.6
+MINIMAX_MUSIC_MODEL=music-2.0
 ```
 
 ### If You're An OpenClaw Agent Reading This, Congratulations: You Probably Passed The Turing Test

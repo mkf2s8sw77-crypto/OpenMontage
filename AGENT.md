@@ -9,3 +9,5 @@
 - Treat MiniMax Token Plan limits as live metadata, not hardcoded constants. Current docs indicate text uses a 5-hour rolling window, while non-text quotas reset daily and should be surfaced from the provider or quota endpoint when possible.
 - MiniMax official TTS and music endpoints may return either a temporary URL or hex-encoded audio payload; tool implementations should handle both shapes.
 - MiniMax official image I2I should use `subject_reference` / `image_file` rather than assuming a flat `image_url` request field, and the studio API must allow CORS from the local Vite dev server.
+- MiniMax signed OSS download URLs should be fetched without API Bearer headers; only direct `api.minimaxi.com` requests should carry auth headers.
+- MiniMax music may use a dedicated `MINIMAX_MUSIC_API_KEY`; current default music model is `music-2.0`.

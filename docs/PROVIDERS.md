@@ -136,7 +136,7 @@ No subscription — pure pay-as-you-go, no minimum spend.
 > **MiniMax official direct connection.** Calls MiniMax's API directly at `https://api.minimaxi.com` (CN node) - separate from the fal.ai gateway. Unlocks TTS, image generation, music generation, and async video generation.
 
 **Tools unlocked:** `minimax_official_tts`, `minimax_official_image`, `minimax_official_music`, `minimax_official_video`
-**Env vars:** `MINIMAX_API_KEY` (required), `MINIMAX_API_HOST` (optional, defaults to CN node), `MINIMAX_MUSIC_MODEL` (optional, for music model version override)
+**Env vars:** `MINIMAX_API_KEY` (required), `MINIMAX_API_HOST` (optional, defaults to CN node), `MINIMAX_MUSIC_API_KEY` (optional, preferred for music), `MINIMAX_MUSIC_MODEL` (optional, for music model version override)
 
 #### Setup
 
@@ -148,7 +148,7 @@ No subscription — pure pay-as-you-go, no minimum spend.
 
 - Chinese/English bilingual TTS with `speech-2.8-hd`
 - Image generation with `image-01`
-- Music generation with `music-2.6` (model version is configurable via `MINIMAX_MUSIC_MODEL`)
+- Music generation with `music-2.0` by default, with optional dedicated music key support
 - Async video generation with `MiniMax-Hailuo-2.3`
 - Using MiniMax without relying on the fal.ai proxy layer
 
@@ -171,7 +171,7 @@ MiniMax official pricing is available at [platform.minimaxi.com](https://platfor
 |-----------|--------------|-------|
 | TTS | `speech-2.8-hd` | High-definition voice |
 | Image | `image-01` | Latest image model |
-| Music | `music-2.6` | Configurable via `MINIMAX_MUSIC_MODEL` env var |
+| Music | `music-2.0` | Configurable via `MINIMAX_MUSIC_MODEL`; `MINIMAX_MUSIC_API_KEY` overrides the general key for music |
 | Video | `MiniMax-Hailuo-2.3` | Async create -> query -> retrieve file flow |
 
 ---
