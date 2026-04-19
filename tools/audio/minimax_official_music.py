@@ -1,6 +1,6 @@
 """MiniMax Official music generation tool.
 
-Directly calls the MiniMax official music API (music-2.6 by default).
+Directly calls the MiniMax official music API.
 Does NOT go through fal.ai.
 
 The default model version is configurable via MINIMAX_MUSIC_MODEL env var
@@ -28,7 +28,12 @@ from tools.base_tool import (
 )
 
 # Default model - exposed so callers / tests can reference / override
-DEFAULT_MUSIC_MODEL = os.environ.get("MINIMAX_MUSIC_MODEL", "music-2.6")
+DEFAULT_MUSIC_MODEL = os.environ.get("MINIMAX_MUSIC_MODEL", "music-2.0")
+
+
+def get_music_api_key() -> str | None:
+    """Prefer a dedicated music key when provided, otherwise fall back."""
+    return os.environ.get("MINIMAX_MUSIC_API_KEY") or os.environ.get("MINIMAX_API_KEY")
 
 
 class MiniMaxOfficialMusic(BaseTool):
@@ -42,10 +47,11 @@ class MiniMaxOfficialMusic(BaseTool):
     determinism = Determinism.STOCHASTIC
     runtime = ToolRuntime.API
 
-    dependencies = ["env:MINIMAX_API_KEY"]
+    dependencies = []
     install_instructions = (
-        "Set the MINIMAX_API_KEY environment variable:\n"
-        "  export MINIMAX_API_KEY=your_key_here\n"
+        "Set MINIMAX_MUSIC_API_KEY (preferred) or MINIMAX_API_KEY:\n"
+        "  export MINIMAX_MUSIC_API_KEY=your_music_key_here\n"
+        "  export MINIMAX_API_KEY=your_general_key_here\n"
         "Get a key at https://platform.minimaxi.com/\n"
         "Optionally set MINIMAX_MUSIC_MODEL to override the default music model."
     )
@@ -74,7 +80,7 @@ class MiniMaxOfficialMusic(BaseTool):
             "model": {
                 "type": "string",
                 "default": DEFAULT_MUSIC_MODEL,
-                "description": "MiniMax music model (configurable; defaults to music-2.6 or MINIMAX_MUSIC_MODEL env var)",
+                "description": "MiniMax music model (configurable; defaults to music-2.0 or MINIMAX_MUSIC_MODEL env var)",
             },
             "duration_seconds": {
                 "type": "number",
@@ -97,7 +103,7 @@ class MiniMaxOfficialMusic(BaseTool):
     ]
 
     def get_status(self) -> ToolStatus:
-        if os.environ.get("MINIMAX_API_KEY"):
+        if get_music_api_key():
             return ToolStatus.AVAILABLE
         return ToolStatus.UNAVAILABLE
 
@@ -107,11 +113,11 @@ class MiniMaxOfficialMusic(BaseTool):
         return round(duration / 30 * 0.05, 4)
 
     def execute(self, inputs: dict[str, Any]) -> ToolResult:
-        api_key = os.environ.get("MINIMAX_API_KEY")
+        api_key = get_music_api_key()
         if not api_key:
             return ToolResult(
                 success=False,
-                error="No MiniMax API key. " + self.install_instructions,
+                error="No MiniMax music API key. " + self.install_instructions,
             )
 
         start = time.time()

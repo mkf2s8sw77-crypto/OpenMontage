@@ -226,6 +226,12 @@ class TestMiniMaxOfficialMusic:
             tool = MiniMaxOfficialMusic()
             assert tool.get_status() == ToolStatus.AVAILABLE
 
+    def test_available_with_dedicated_music_key(self):
+        with patch.dict(os.environ, {"MINIMAX_MUSIC_API_KEY": "music-key"}, clear=True):
+            from tools.audio.minimax_official_music import MiniMaxOfficialMusic
+            tool = MiniMaxOfficialMusic()
+            assert tool.get_status() == ToolStatus.AVAILABLE
+
     def test_execute_returns_error_without_key(self):
         with patch.dict(os.environ, {}, clear=True):
             from tools.audio.minimax_official_music import MiniMaxOfficialMusic
@@ -292,11 +298,11 @@ class TestMiniMaxOfficialMusic:
         assert tool.provider == "minimax_official"
 
     def test_default_music_model_from_env(self):
-        # When MINIMAX_MUSIC_MODEL is not set, DEFAULT_MUSIC_MODEL should be "music-2.6"
+        # When MINIMAX_MUSIC_MODEL is not set, DEFAULT_MUSIC_MODEL should be "music-2.0"
         import importlib
         import tools.audio.minimax_official_music as music_module
         importlib.reload(music_module)
-        assert music_module.DEFAULT_MUSIC_MODEL == "music-2.6"
+        assert music_module.DEFAULT_MUSIC_MODEL == "music-2.0"
 
     def test_default_music_model_can_be_overridden_via_env(self, monkeypatch):
         monkeypatch.setenv("MINIMAX_MUSIC_MODEL", "music-2.5")
@@ -304,6 +310,16 @@ class TestMiniMaxOfficialMusic:
         import tools.audio.minimax_official_music as music_module
         importlib.reload(music_module)
         assert music_module.DEFAULT_MUSIC_MODEL == "music-2.5"
+
+    def test_music_key_prefers_dedicated_env(self):
+        with patch.dict(
+            os.environ,
+            {"MINIMAX_API_KEY": "general-key", "MINIMAX_MUSIC_API_KEY": "music-key"},
+            clear=True,
+        ):
+            from tools.audio.minimax_official_music import get_music_api_key
+
+            assert get_music_api_key() == "music-key"
 
 
 class TestMiniMaxOfficialVideo:

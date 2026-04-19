@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import time
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
@@ -184,7 +185,17 @@ class MiniMaxOfficialClient:
 
     def download_file(self, url: str, output_path: str | os.PathLike) -> None:
         """Download a file from a given URL to output_path."""
-        resp = self._session.get(url, headers=self.headers, timeout=self.timeout, stream=True)
+        request_kwargs: dict[str, Any] = {
+            "timeout": self.timeout,
+            "stream": True,
+        }
+        api_host = urlparse(self.host).netloc.lower()
+        target_host = urlparse(url).netloc.lower()
+        # MiniMax often returns pre-signed OSS URLs. Those should be fetched
+        # without the API Bearer header, otherwise the object store returns 403.
+        if target_host == api_host:
+            request_kwargs["headers"] = self.headers
+        resp = self._session.get(url, **request_kwargs)
         resp.raise_for_status()
         path = Path(output_path) if not isinstance(output_path, Path) else output_path
         path.parent.mkdir(parents=True, exist_ok=True)

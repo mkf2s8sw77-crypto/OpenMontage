@@ -163,6 +163,46 @@ class TestMiniMaxOfficialClient:
                 client.download_file("https://example.com/file.mp3", output)
                 assert output.read_bytes() == b"data"
 
+    def test_download_file_omits_auth_for_external_signed_url(self, tmp_path: Path):
+        with patch.dict(os.environ, {"MINIMAX_API_KEY": "test-key"}):
+            from lib.providers.minimax_official_client import MiniMaxOfficialClient
+
+            client = MiniMaxOfficialClient()
+            mock_stream = MagicMock()
+            mock_stream.iter_content.return_value = [b"data"]
+
+            mock_resp = MagicMock()
+            mock_resp.ok = True
+            mock_resp.iter_content = mock_stream.iter_content
+
+            with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+                client.download_file(
+                    "https://hailuo-image-algeng-data.oss-cn-wulanchabu.aliyuncs.com/example.jpeg?Expires=123",
+                    tmp_path / "image.jpeg",
+                )
+            _, kwargs = mock_get.call_args
+            assert "headers" not in kwargs
+
+    def test_download_file_keeps_auth_for_api_host(self, tmp_path: Path):
+        with patch.dict(os.environ, {"MINIMAX_API_KEY": "test-key"}):
+            from lib.providers.minimax_official_client import MiniMaxOfficialClient
+
+            client = MiniMaxOfficialClient()
+            mock_stream = MagicMock()
+            mock_stream.iter_content.return_value = [b"data"]
+
+            mock_resp = MagicMock()
+            mock_resp.ok = True
+            mock_resp.iter_content = mock_stream.iter_content
+
+            with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+                client.download_file(
+                    "https://api.minimaxi.com/v1/files/content?id=123",
+                    tmp_path / "file.bin",
+                )
+            _, kwargs = mock_get.call_args
+            assert kwargs["headers"]["Authorization"] == "Bearer test-key"
+
     def test_write_hex_payload_persists_bytes(self, tmp_path: Path):
         from lib.providers.minimax_official_client import write_hex_payload
 
